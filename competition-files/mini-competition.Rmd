@@ -6,3 +6,97 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+```{r}
+library("readxl")
+```
+
+
+```{r}
+library("readxl")
+
+pfi_data <- read_excel("~/STA631/activity08-mini-competition/competition-files/data/pfi-data.xlsx")
+
+```
+
+```{r}
+print(str(pfi_data))
+print(summary(pfi_data))
+```
+
+
+```{r}
+# Step 1: Exploratory Data Analysis (EDA)
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(MASS) # For Negative Binomial regression
+library(broom) # For tidy summaries
+```
+
+```{r}
+# Visualize the distribution of the potential response variable 'ALLGRADEX'
+ggplot(pfi_data, aes(x=ALLGRADEX)) +
+  geom_histogram(bins=30, fill="dodgerblue", color="black") +
+  ggtitle("Distribution of Academic Success (ALLGRADEX)") +
+  xlab("Grade") +
+  ylab("Count")
+```
+
+
+```{r}
+# Step 2: Identify Variables
+# Assuming ALLGRADEX as the response variable and the following as explanatory variables:
+# SCCHOICE, SCHLHRSWK, EINTNET, PARGRADEX
+
+# Check for missing values or anomalies
+print(summarize(pfi_data, across(everything(), list(~sum(is.na(.))))))
+```
+
+```{r}
+# Step 3: Model Selection
+# Assuming 'ALLGRADEX' represents count data, let's start with Poisson regression and consider Negative Binomial if necessary.
+
+# Fit a Poisson regression model
+poisson_model <- glm(ALLGRADEX ~ SCCHOICE + SCHLHRSWK + EINTNET + PARGRADEX, data=pfi_data, family=poisson())
+print(summary(poisson_model))
+```
+
+
+```{r}
+# Assess overdispersion for Poisson model
+poisson_residuals <- residuals(poisson_model, type = "pearson")
+overdispersion <- sum(poisson_residuals^2) / poisson_model$df.residual
+print(paste("Overdispersion: ", overdispersion))
+```
+
+
+```{r}
+# If overdispersion is significant, fit a Negative Binomial model
+if (overdispersion > 1) {
+  neg_binom_model <- glm.nb(ALLGRADEX ~ SCCHOICE + SCHLHRSWK + EINTNET + PARGRADEX, data=pfi_data)
+  print(summary(neg_binom_model))
+}
+```
+
+```{r}
+# Step 4: Model Assessment
+# Compare AIC and BIC for model selection
+poisson_aic_bic <- c(AIC(poisson_model), BIC(poisson_model))
+neg_binom_aic_bic <- if(exists("neg_binom_model")) c(AIC(neg_binom_model), BIC(neg_binom_model)) else c(NA, NA)
+
+print(data.frame(Model = c("Poisson", "Negative Binomial"), AIC = c(poisson_aic_bic[1], neg_binom_aic_bic[1]), BIC = c(poisson_aic_bic[2], neg_binom_aic_bic[2])))
+```
+
+```{r}
+# Step 5: Interpretation and Recommendations
+# Assuming the Negative Binomial model fits better (based on AIC/BIC and overdispersion checks),
+# we'll interpret its coefficients for insights.
+if (overdispersion > 1) {
+  tidy_model <- tidy(neg_binom_model)
+  print(tidy_model)
+  # Interpret coefficients and make recommendations based on the model output.
+}
+```
+
